@@ -25,6 +25,11 @@ builder.Services.AddMassTransit(mt =>
             h.Password("guest");
         });
         cfg.Message<TestMessage>(c => c.SetEntityName("TestMessage"));
+        cfg.UseHangfireScheduler();
+        cfg.UseScheduledRedelivery(r =>
+        {
+            r.Intervals(TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(3));
+        });
         cfg.ConfigureEndpoints(context);
     });
     mt.AddConsumer<TestMessageConsumer>();
