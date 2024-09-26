@@ -1,4 +1,8 @@
+using System.Data;
+using System.Security.Authentication;
+using Api;
 using Hangfire;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +13,22 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHangfire(cfg => cfg.UseInMemoryStorage());
 builder.Services.AddHangfireServer();
+
+builder.Services.AddMassTransit(mt =>
+{
+    mt.AddPublishMessageScheduler();
+    mt.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("amqps://localhost:5672", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+        cfg.Message<TestMessage>(c => c.SetEntityName("TestMessage"));
+        cfg.ConfigureEndpoints(context);
+    });
+    mt.AddConsumer<TestMessageConsumer>();
+});
 
 var app = builder.Build();
 
@@ -42,6 +62,13 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast")
 .WithOpenApi();
+
+app.MapGet("/test", (IPublishEndpoint endpoint) =>
+    {
+        endpoint.Publish(new TestMessage(Guid.NewGuid()));
+    })
+    .WithName("Test")
+    .WithOpenApi();
 
 app.Run();
 
